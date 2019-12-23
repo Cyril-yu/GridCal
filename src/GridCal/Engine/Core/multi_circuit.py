@@ -67,11 +67,17 @@ class MultiCircuit:
         # Should be able to accept Branches, Lines and Transformers alike
         self.branches = list()
 
+        # list of DC branches
+        self.dc_branches = list()
+
         # array of branch indices in the master circuit
         self.branch_original_idx = list()
 
-        # Should accept buses
+        # list of AC buses
         self.buses = list()
+
+        # list of AC/DC buses
+        self.acdc_buses = list()
 
         # array of bus indices in the master circuit
         self.bus_original_idx = list()
@@ -149,12 +155,14 @@ class MultiCircuit:
         """
         # Should be able to accept Branches, Lines and Transformers alike
         self.branches = list()
+        self.dc_branches = list()
 
         # array of branch indices in the master circuit
         self.branch_original_idx = list()
 
         # Should accept buses
         self.buses = list()
+        self.acdc_buses = list()
 
         # array of bus indices in the master circuit
         self.bus_original_idx = list()
@@ -989,6 +997,19 @@ class MultiCircuit:
 
         self.buses.append(obj)
 
+    def add_acdc_bus(self, obj: Bus):
+        """
+        Add a :ref:`Bus<bus>` object to the grid.
+
+        Arguments:
+
+            **obj** (:ref:`Bus<bus>`): :ref:`Bus<bus>` object
+        """
+        if self.time_profile is not None:
+            obj.create_profiles(self.time_profile)
+
+        self.acdc_buses.append(obj)
+
     def delete_bus(self, obj: Bus):
         """
         Delete a :ref:`Bus<bus>` object from the grid.
@@ -1008,6 +1029,26 @@ class MultiCircuit:
             print('Deleted', obj.name)
             self.buses.remove(obj)
 
+    def delete_acdc_bus(self, obj: Bus):
+        """
+        Delete a :ref:`Bus<bus>` object from the grid.
+
+        Arguments:
+
+            **obj** (:ref:`Bus<bus>`): :ref:`Bus<bus>` object
+        """
+
+        # remove associated branches in reverse order
+        for branches in [self.branches, self.dc_branches]:
+            for i in range(len(branches) - 1, -1, -1):
+                if branches[i].bus_from == obj or branches[i].bus_to == obj:
+                    branches.pop(i)
+
+        # remove the bus itself
+        if obj in self.acdc_buses:
+            print('Deleted', obj.name)
+            self.acdc_buses.remove(obj)
+
     def add_branch(self, obj: Branch):
         """
         Add a :ref:`Branch<branch>` object to the grid.
@@ -1022,6 +1063,20 @@ class MultiCircuit:
 
         self.branches.append(obj)
 
+    def add_dc_branch(self, obj: Branch):
+        """
+        Add a :ref:`Branch<branch>` object to the grid.
+
+        Arguments:
+
+            **obj** (:ref:`Branch<branch>`): :ref:`Branch<branch>` object
+        """
+
+        if self.time_profile is not None:
+            obj.create_profiles(self.time_profile)
+
+        self.dc_branches.append(obj)
+
     def delete_branch(self, obj: Branch):
         """
         Delete a :ref:`Branch<branch>` object from the grid.
@@ -1031,6 +1086,16 @@ class MultiCircuit:
             **obj** (:ref:`Branch<branch>`): :ref:`Branch<branch>` object
         """
         self.branches.remove(obj)
+
+    def delete_dc_branch(self, obj: Branch):
+        """
+        Delete a :ref:`Branch<branch>` object from the grid.
+
+        Arguments:
+
+            **obj** (:ref:`Branch<branch>`): :ref:`Branch<branch>` object
+        """
+        self.dc_branches.remove(obj)
 
     def add_load(self, bus: Bus, api_obj=None):
         """

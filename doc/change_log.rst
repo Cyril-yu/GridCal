@@ -13,8 +13,8 @@ Hence if something goes wrong, you need to re-upload with a new Version number.
 Version 3.6.5
 ^^^^^^^^^^^^^^
 
-- Added Sqlite save/open support
-- Added Grid append functionality
+- Added Sqlite save/open support.
+- Added Grid append functionality, this allows you to merge projects easily.
 
 
 Version 3.6.4

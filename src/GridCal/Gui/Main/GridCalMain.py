@@ -149,9 +149,9 @@ class MainGUI(QMainWindow):
 
         # ptdf grouping modes
         self.ptdf_group_modes = OrderedDict()
+        self.ptdf_group_modes[PtdfGroupMode.ByNode.value] = PtdfGroupMode.ByNode
         self.ptdf_group_modes[PtdfGroupMode.ByGenLoad.value] = PtdfGroupMode.ByGenLoad
         self.ptdf_group_modes[PtdfGroupMode.ByTechnology.value] = PtdfGroupMode.ByTechnology
-        self.ptdf_group_modes[PtdfGroupMode.ByNode.value] = PtdfGroupMode.ByNode
         lst = list(self.ptdf_group_modes.keys())
         mdl = get_list_model(lst)
         self.ui.ptdf_grouping_comboBox.setModel(mdl)
@@ -1534,6 +1534,16 @@ class MainGUI(QMainWindow):
             elements = self.circuit.branches
 
             self.view_template_controls(True)
+
+        elif elm_type == 'Ac/Dc Buses':
+
+            elm = AcDcBus()
+            elements = self.circuit.acdc_buses
+
+        elif elm_type == 'Dc Branches':
+
+            elm = DcBranch()
+            elements = self.circuit.dc_branches
 
         elif elm_type == 'Loads':
             elm = Load()

@@ -364,12 +364,16 @@ class BranchGraphicItem(QGraphicsLineItem):
 
         # add transformer circles
         self.symbol_type = BranchType.Line
+        self.symbol_f = None
+        self.symbol_t = None
         self.symbol = None
         self.c0 = None
         self.c1 = None
         self.c2 = None
         if self.api_object is not None:
             self.update_symbol()
+
+        # self.make_arrow_symbols()
 
         # add the line and it possible children to the scene
         self.diagramScene.addItem(self)
@@ -428,10 +432,10 @@ class BranchGraphicItem(QGraphicsLineItem):
         create the transformer simbol
         :return:
         """
-        h = 80.0
-        w = h
-        d = w/2
-        self.symbol = QGraphicsRectItem(QRectF(0, 0, w, h), parent=self)
+        w = 60.0
+        h = 80
+        d = h/2
+        self.symbol = QGraphicsRectItem(QRectF(0, 0, h, w), parent=self)
         self.symbol.setPen(QPen(Qt.transparent))
 
         self.c0 = QGraphicsEllipseItem(0, 0, d, d, parent=self.symbol)
@@ -445,9 +449,9 @@ class BranchGraphicItem(QGraphicsLineItem):
         self.c0.setBrush(QBrush(Qt.white))
         self.c2.setBrush(QBrush(Qt.white))
 
-        self.c0.setPos(w * 0.35 - d / 2, h * 0.5 - d / 2)
-        self.c1.setPos(w * 0.35 - d / 2, h * 0.5 - d / 2)
-        self.c2.setPos(w * 0.65 - d / 2, h * 0.5 - d / 2)
+        self.c0.setPos(h * 0.35 - d / 2, w * 0.5 - d / 2)
+        self.c1.setPos(h * 0.35 - d / 2, w * 0.5 - d / 2)
+        self.c2.setPos(h * 0.65 - d / 2, w * 0.5 - d / 2)
 
         self.c0.setZValue(0)
         self.c1.setZValue(2)
@@ -507,6 +511,40 @@ class BranchGraphicItem(QGraphicsLineItem):
         self.symbol = QGraphicsRectItem(QRectF(0, 0, w, h), parent=self)
         self.symbol.setPen(QPen(self.color, self.width, self.style))
         self.symbol.setBrush(self.color)
+
+    def make_arrow_symbols(self):
+        """
+        Make the arrow symbols
+        :return:
+        """
+        h = 30.0
+        w = int(h / 2)
+
+        self.symbol_f = QGraphicsRectItem(QRectF(0, 0, w, h), parent=self)
+        self.symbol_t = QGraphicsRectItem(QRectF(0, 0, w, h), parent=self)
+
+        self.symbol_f.setBrush(QBrush(Qt.black))
+        self.symbol_t.setBrush(QBrush(Qt.black))
+
+        # offset = 3
+        # t_points = QPolygonF()
+        # t_points.append(QPointF(0, offset))
+        # t_points.append(QPointF(w-offset, w2))
+        # t_points.append(QPointF(0, w-offset))
+        # triangle = QGraphicsPolygonItem(self.symbol)
+        # triangle.setPolygon(t_points)
+        # triangle.setPen(QPen(Qt.white))
+        # triangle.setBrush(QBrush(Qt.white))
+        #
+        # line = QGraphicsRectItem(QRectF(h-offset, offset, offset, w-2*offset), parent=self.symbol)
+        # line.setPen(QPen(Qt.white))
+        # line.setBrush(QBrush(Qt.white))
+        #
+        # self.symbol.setPen(QPen(self.color, self.width, self.style))
+        # if self.api_object.active:
+        #     self.symbol.setBrush(self.color)
+        # else:
+        #     self.symbol.setBrush(QBrush(Qt.white))
 
     def setToolTipText(self, toolTip: str):
         """
@@ -764,6 +802,56 @@ class BranchGraphicItem(QGraphicsLineItem):
         self.pos1 = pos1
         self.redraw()
 
+    def set_transformation(self, symbol: QGraphicsRectItem, loc=0.5):
+
+        # h = symbol.rect().height()
+        # w = symbol.rect().width()
+        #
+        # x1 = self.pos1.x()
+        # y1 = self.pos1.y()
+        # x2 = self.pos2.x()
+        # y2 = self.pos2.y()
+        #
+        # dx = x2 - x1
+        # dy = y2 - y1
+        # r = np.sqrt(dx**2 + dy**2)
+        # rb = loc * r - h / 2
+        # rp = np.sqrt(rb**2 + (w/2)**2)
+        #
+        # alpha = np.arctan(dy / dx)
+        #
+        # if dx < 0:
+        #     alpha += np.pi / 1
+        #
+        # beta = np.arctan((1 * w / 3 + self.width) / rb)
+        # ang = alpha - beta
+        # xc = x1 + rp * np.cos(ang)
+        # yc = y1 + rp * np.sin(ang)
+        #
+        # # self.guide_line.setLine(QLineF(x1, y1, xc, yc))
+        #
+        # transform = QTransform()
+        # transform.translate(xc, yc)
+        # transform.rotate(np.rad2deg(alpha))
+        # symbol.setTransform(transform)
+
+        dy = self.pos2.y() - self.pos1.y()
+        dx = self.pos2.x() - self.pos1.x()
+        ang = np.arctan2(dy, dx)
+        h2 = symbol.rect().height() / 2.0
+        w2 = symbol.rect().width() / 2.0
+        a = h2 * np.cos(ang) - w2 * np.sin(ang)
+        b = w2 * np.sin(ang) + h2 * np.cos(ang)
+
+        center = (self.pos1 + self.pos2) * loc - QPointF(a, b)
+
+        transform = QTransform()
+        transform.translate(center.x(), center.y())
+        transform.rotate(np.rad2deg(ang))
+        symbol.setTransform(transform)
+
+        # print('(', dx, '), (', dy, ')\tr:', rb, '\talpha:', alpha, '\tr2:', rp, '\tbeta:', beta)
+
     def redraw(self):
         """
         Redraw the line with the given positions
@@ -776,6 +864,9 @@ class BranchGraphicItem(QGraphicsLineItem):
 
             # set Z-Order (to the back)
             self.setZValue(-1)
+
+            # self.set_transformation(self.symbol_f, loc=0.1)
+            # self.set_transformation(self.symbol_t, loc=0.9)
 
             if self.api_object is not None:
 
@@ -791,22 +882,9 @@ class BranchGraphicItem(QGraphicsLineItem):
 
                 else:
 
-                    # if the branch has a moveable symbol, move it
+                    # if the branch has a movable symbol, move it
                     try:
-                        h = self.pos2.y() - self.pos1.y()
-                        b = self.pos2.x() - self.pos1.x()
-                        ang = np.arctan2(h, b)
-                        h2 = self.symbol.rect().height() / 2.0
-                        w2 = self.symbol.rect().width() / 2.0
-                        a = h2 * np.cos(ang) - w2 * np.sin(ang)
-                        b = w2 * np.sin(ang) + h2 * np.cos(ang)
-
-                        center = (self.pos1 + self.pos2) * 0.5 - QPointF(a, b)
-
-                        transform = QTransform()
-                        transform.translate(center.x(), center.y())
-                        transform.rotate(np.rad2deg(ang))
-                        self.symbol.setTransform(transform)
+                        self.set_transformation(self.symbol, loc=0.5)
 
                     except Exception as ex:
                         print(ex)

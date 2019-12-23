@@ -22,8 +22,9 @@ from PySide2.QtGui import *
 from PySide2.QtSvg import QSvgGenerator
 from GridCal.Engine.Core.multi_circuit import MultiCircuit
 from GridCal.Engine.Devices.bus import Bus
-from GridCal.Gui.GridEditorWidget.generic import ACTIVE
-from GridCal.Gui.GridEditorWidget.bus import HandleItem, TerminalItem, BusGraphicItem
+from GridCal.Engine.Devices.acdc_bus import AcDcBus
+from GridCal.Engine.Devices.dc_branch import DcBranch
+from GridCal.Gui.GridEditorWidget.bus import TerminalItem, BusGraphicItem, AcDcBusGraphicItem
 from GridCal.Gui.GridEditorWidget.branch import BranchGraphicItem, BranchType, Branch
 
 
@@ -91,6 +92,25 @@ class EditorGraphicsView(QGraphicsView):
         if event.mimeData().hasFormat('component/name'):
             event.accept()
 
+    @staticmethod
+    def check_mime(event, name):
+        """
+        Check if the event is of a drop type with the name "name"
+        :param event:
+        :param name:
+        :return:
+        """
+        if event.mimeData().hasFormat('component/name'):
+            obj_type = event.mimeData().data('component/name')
+            data = QByteArray()
+            stream = QDataStream(data, QIODevice.WriteOnly)
+            stream.writeQString(name)
+
+            if obj_type == data:
+                return True
+        else:
+            return False
+
     def dropEvent(self, event):
         """
         Create an element
@@ -98,18 +118,24 @@ class EditorGraphicsView(QGraphicsView):
         @return:
         """
         if event.mimeData().hasFormat('component/name'):
-            obj_type = event.mimeData().data('component/name')
+
             elm = None
-            data = QByteArray()
-            stream = QDataStream(data, QIODevice.WriteOnly)
-            stream.writeQString('Bus')
-            if obj_type == data:
+
+            if self.check_mime(event, 'Bus'):
                 name = 'Bus ' + str(self.last_n)
                 self.last_n += 1
                 obj = Bus(name=name)
                 elm = BusGraphicItem(diagramScene=self.scene(), name=name, editor=self.editor, bus=obj)
                 obj.graphic_obj = elm
                 self.scene_.circuit.add_bus(obj)  # weird but it's the only way to have graphical-API communication
+
+            elif self.check_mime(event, 'AC/DC Bus'):
+                name = 'AC/DC Bus ' + str(self.last_n)
+                self.last_n += 1
+                obj = AcDcBus(name=name)
+                elm = AcDcBusGraphicItem(diagramScene=self.scene(), name=name, editor=self.editor, bus=obj)
+                obj.graphic_obj = elm
+                self.scene_.circuit.add_acdc_bus(obj)  # weird but it's the only way to have graphical-API communication
 
             if elm is not None:
                 elm.setPos(self.mapToScene(event.pos()))
@@ -218,7 +244,7 @@ class DiagramScene(QGraphicsScene):
 
 class ObjectFactory(object):
 
-    def get_box(self):
+    def get_box(self, color=Qt.black):
         """
 
         @return:
@@ -226,12 +252,12 @@ class ObjectFactory(object):
         pixmap = QPixmap(40, 40)
         pixmap.fill()
         painter = QPainter(pixmap)
-        painter.fillRect(0, 0, 40, 40, Qt.black)
+        painter.fillRect(0, 0, 40, 40, color)
         painter.end()
 
         return QIcon(pixmap)
 
-    def get_circle(self):
+    def get_circle(self, color=Qt.red):
         """
 
         @return:
@@ -240,7 +266,7 @@ class ObjectFactory(object):
         pixmap.fill()
         painter = QPainter(pixmap)
 
-        painter.setBrush(Qt.red)
+        painter.setBrush(color)
         painter.drawEllipse(0, 0, 40, 40)
 
         painter.end()
@@ -279,11 +305,16 @@ class GridEditor(QSplitter):
         # initialize library of items
         self.libItems = list()
         self.libItems.append(QStandardItem(object_factory.get_box(), 'Bus'))
+        self.libItems.append(QStandardItem(object_factory.get_box(), 'AC/DC Bus'))
         for i in self.libItems:
             self.libraryModel.appendRow(i)
 
         # set the objects list
-        self.object_types = ['Buses', 'Branches', 'Loads', 'Static Generators',
+        self.object_types = ['Buses',
+                             'Ac/Dc Buses',
+                             'Branches',
+                             'Dc Branches',
+                             'Loads', 'Static Generators',
                              'Generators', 'Batteries', 'Shunts']
 
         self.catalogue_types = ['Wires', 'Overhead lines', 'Underground lines', 'Sequence lines', 'Transformers']
@@ -341,8 +372,6 @@ class GridEditor(QSplitter):
         self.started_branch = BranchGraphicItem(port, None, self.diagramScene)
         self.started_branch.bus_from = port.parent
         port.setZValue(0)
-        # if self.diagramView.map.isVisible():
-        #     self.diagramView.map.setZValue(-1)
         port.process_callbacks(port.parent.pos() + port.pos())
 
     def sceneMouseMoveEvent(self, event):
@@ -370,34 +399,49 @@ class GridEditor(QSplitter):
                 if type(item) is TerminalItem:  # connect only to terminals
                     if item.parent is not self.started_branch.fromPort.parent:  # forbid connecting to itself
 
-                        # if type(item.parent) is not type(self.startedConnection.fromPort.parent):
-                        #  forbid same type connections
-
                         self.started_branch.setToPort(item)
                         item.hosting_connections.append(self.started_branch)
-                        # self.started_branch.setZValue(-1)
                         self.started_branch.bus_to = item.parent
-                        name = 'Branch ' + str(self.branch_editor_count)
-                        v1 = self.started_branch.bus_from.api_object.Vnom
-                        v2 = self.started_branch.bus_to.api_object.Vnom
 
-                        if abs(v1 - v2) > 1.0:
-                            branch_type = BranchType.Transformer
+                        if isinstance(self.started_branch.bus_from, AcDcBusGraphicItem) and \
+                                isinstance(self.started_branch.bus_to, AcDcBusGraphicItem):
+
+                            obj = DcBranch(bus_from=self.started_branch.bus_from.api_object,
+                                           bus_to=self.started_branch.bus_to.api_object,
+                                           name='Dc Line ' + str(self.branch_editor_count),
+                                           branch_type=BranchType.DCLine)
+
+                            obj.graphic_obj = self.started_branch
+
+                            self.started_branch.api_object = obj
+                            self.circuit.add_branch(obj)
+
+                            item.process_callbacks(item.parent.pos() + item.pos())
+
+                            self.started_branch.setZValue(-1)
+
                         else:
-                            branch_type = BranchType.Line
 
-                        obj = Branch(bus_from=self.started_branch.bus_from.api_object,
-                                     bus_to=self.started_branch.bus_to.api_object,
-                                     name=name,
-                                     branch_type=branch_type)
-                        obj.graphic_obj = self.started_branch
-                        self.started_branch.api_object = obj
-                        self.circuit.add_branch(obj)
-                        item.process_callbacks(item.parent.pos() + item.pos())
+                            v1 = self.started_branch.bus_from.api_object.Vnom
+                            v2 = self.started_branch.bus_to.api_object.Vnom
 
-                        self.started_branch.setZValue(-1)
-                        # if self.diagramView.map.isVisible():
-                        #     self.diagramView.map.setZValue(-1)
+                            if abs(v1 - v2) > 1.0:
+                                branch_type = BranchType.Transformer
+                            else:
+                                branch_type = BranchType.Line
+
+                            obj = Branch(bus_from=self.started_branch.bus_from.api_object,
+                                         bus_to=self.started_branch.bus_to.api_object,
+                                         name='Branch ' + str(self.branch_editor_count),
+                                         branch_type=branch_type)
+                            obj.graphic_obj = self.started_branch
+
+                            self.started_branch.api_object = obj
+                            self.circuit.add_branch(obj)
+
+                            item.process_callbacks(item.parent.pos() + item.pos())
+
+                            self.started_branch.setZValue(-1)
 
             if self.started_branch.toPort is None:
                 self.started_branch.remove_widget()
@@ -419,7 +463,7 @@ class GridEditor(QSplitter):
 
             # expand selection
             for item in self.diagramScene.selectedItems():
-                if type(item) is BusGraphicItem:
+                if type(item) is BusGraphicItem or type(item) is AcDcBusGraphicItem:
                     x = item.pos().x() * self.expand_factor
                     y = item.pos().y() * self.expand_factor
                     item.setPos(QPointF(x, y))
@@ -438,7 +482,7 @@ class GridEditor(QSplitter):
 
             # expand all
             for item in self.diagramScene.items():
-                if type(item) is BusGraphicItem:
+                if type(item) is BusGraphicItem or type(item) is AcDcBusGraphicItem:
                     x = item.pos().x() * self.expand_factor
                     y = item.pos().y() * self.expand_factor
                     item.setPos(QPointF(x, y))
@@ -470,7 +514,7 @@ class GridEditor(QSplitter):
 
             # shrink selection only
             for item in self.diagramScene.selectedItems():
-                if type(item) is BusGraphicItem:
+                if type(item) is BusGraphicItem or type(item) is AcDcBusGraphicItem:
                     x = item.pos().x() / self.expand_factor
                     y = item.pos().y() / self.expand_factor
                     item.setPos(QPointF(x, y))
@@ -488,7 +532,7 @@ class GridEditor(QSplitter):
 
             # shrink all
             for item in self.diagramScene.items():
-                if type(item) is BusGraphicItem:
+                if type(item) is BusGraphicItem or type(item) is AcDcBusGraphicItem:
                     x = item.pos().x() / self.expand_factor
                     y = item.pos().y() / self.expand_factor
                     item.setPos(QPointF(x, y))

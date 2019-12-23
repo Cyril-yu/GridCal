@@ -29,7 +29,7 @@ from GridCal.Engine.Devices.meta_devices import EditableDevice, DeviceType, GCPr
 from GridCal.Engine.Devices.tower import Tower
 
 
-class Branch(EditableDevice):
+class DcBranch(EditableDevice):
     """
     The **Branch** class represents the connections between nodes (i.e.
     :ref:`buses<bus>`) in **GridCal**. A branch is an element (cable, line, capacitor,
@@ -280,234 +280,25 @@ class Branch(EditableDevice):
 
         # z_series = complex(self.R, self.X)
         # y_shunt = complex(self.G, self.B)
-        b = Branch(bus_from=f,
-                   bus_to=t,
-                   name=self.name,
-                   r=self.R,
-                   x=self.X,
-                   g=self.G,
-                   b=self.B,
-                   rate=self.rate,
-                   tap=self.tap_module,
-                   shift_angle=self.angle,
-                   active=self.active,
-                   mttf=self.mttf,
-                   mttr=self.mttr,
-                   bus_to_regulated=self.bus_to_regulated,
-                   vset=self.vset,
-                   temp_base=self.temp_base,
-                   temp_oper=self.temp_oper,
-                   alpha=self.alpha,
-                   branch_type=self.branch_type,
-                   template=self.template)
+        b = DcBranch(bus_from=f,
+                     bus_to=t,
+                     name=self.name,
+                     r=self.R,
+                     rate=self.rate,
+                     active=self.active,
+                     mttf=self.mttf,
+                     mttr=self.mttr,
+                     vset=self.vset,
+                     temp_base=self.temp_base,
+                     temp_oper=self.temp_oper,
+                     alpha=self.alpha,
+                     branch_type=self.branch_type,)
 
         b.measurements = self.measurements
 
         b.active_prof = self.active_prof.copy()
 
         return b
-
-    def tap_up(self):
-        """
-        Move the tap changer one position up
-        """
-        self.tap_changer.tap_up()
-        self.tap_module = self.tap_changer.get_tap()
-
-    def tap_down(self):
-        """
-        Move the tap changer one position up
-        """
-        self.tap_changer.tap_down()
-        self.tap_module = self.tap_changer.get_tap()
-
-    def apply_tap_changer(self, tap_changer: TapChanger):
-        """
-        Apply a new tap changer
-
-        Argument:
-
-            **tap_changer** (:class:`GridCal.Engine.Devices.branch.TapChanger`): Tap changer object
-
-        """
-        self.tap_changer = tap_changer
-
-        if self.tap_module != 0:
-            self.tap_changer.set_tap(self.tap_module)
-        else:
-            self.tap_module = self.tap_changer.get_tap()
-
-    def get_virtual_taps(self):
-        """
-        Get the branch virtual taps
-
-        The virtual taps generate when a transformer nominal winding voltage differs
-        from the bus nominal voltage.
-
-        Returns:
-
-            **tap_f** (float, 1.0): Virtual tap at the *from* side
-
-            **tap_t** (float, 1.0): Virtual tap at the *to* side
-
-        """
-        if self.branch_type == BranchType.Transformer and type(self.template) == TransformerType:
-            # resolve how the transformer is actually connected and set the virtual taps
-            bus_f_v = self.bus_from.Vnom
-            bus_t_v = self.bus_to.Vnom
-
-            dhf = abs(self.template.HV - bus_f_v)
-            dht = abs(self.template.HV - bus_t_v)
-
-            if dhf < dht:
-                # the HV side is on the from side
-                tpe_f_v = self.template.HV
-                tpe_t_v = self.template.LV
-            else:
-                # the HV side is on the to side
-                tpe_t_v = self.template.HV
-                tpe_f_v = self.template.LV
-
-            tap_f = tpe_f_v / bus_f_v
-            tap_t = tpe_t_v / bus_t_v
-            return tap_f, tap_t
-        else:
-            return 1.0, 1.0
-
-    def apply_template(self, obj, Sbase, logger=Logger()):
-        """
-        Apply a branch template to this object
-
-        Arguments:
-
-            **obj**: TransformerType or Tower object
-
-            **Sbase** (float): Nominal power in MVA
-
-            **logger** (list, []): Log list
-
-        """
-
-        if type(obj) is TransformerType:
-
-            if self.branch_type == BranchType.Transformer:
-
-                # get the transformer impedance in the base of the transformer
-                z_series, zsh = obj.get_impedances()
-
-                # Change the impedances to the system base
-                base_change = Sbase / obj.rating
-                z_series *= base_change
-                zsh *= base_change
-
-                # compute the shunt admittance
-                if zsh.real != 0.0 or zsh.imag != 0.0:
-                    y_shunt = 1.0 / zsh
-                else:
-                    y_shunt = complex(0, 0)
-
-                self.R = np.round(z_series.real, 6)
-                self.X = np.round(z_series.imag, 6)
-                self.G = np.round(y_shunt.real, 6)
-                self.B = np.round(y_shunt.imag, 6)
-
-                self.rate = obj.rating
-
-                if obj != self.template:
-                    self.template = obj
-                    self.branch_type = BranchType.Transformer
-            else:
-                raise Exception('You are trying to apply a transformer type to a non-transformer branch')
-
-        elif type(obj) is Tower:
-
-            if self.branch_type == BranchType.Line:
-                Vn = self.bus_to.Vnom
-                Zbase = (Vn * Vn) / Sbase
-                Ybase = 1 / Zbase
-
-                z = obj.z_series() * self.length / Zbase
-                y = obj.y_shunt() * self.length / Ybase
-
-                self.R = np.round(z.real, 6)
-                self.X = np.round(z.imag, 6)
-                self.G = np.round(y.real, 6)
-                self.B = np.round(y.imag, 6)
-
-                # get the rating in MVA = kA * kV
-                self.rate = obj.rating * Vn * SQRT3
-
-                if obj != self.template:
-                    self.template = obj
-                    self.branch_type = BranchType.Line
-            else:
-                raise Exception('You are trying to apply an Overhead line type to a non-line branch')
-
-        elif type(obj) is UndergroundLineType:
-            Vn = self.bus_to.Vnom
-            Zbase = (Vn * Vn) / Sbase
-            Ybase = 1 / Zbase
-
-            z = obj.z_series() * self.length / Zbase
-            y = obj.y_shunt() * self.length / Ybase
-
-            self.R = np.round(z.real, 6)
-            self.X = np.round(z.imag, 6)
-            self.G = np.round(y.real, 6)
-            self.B = np.round(y.imag, 6)
-
-            # get the rating in MVA = kA * kV
-            self.rate = obj.rating * Vn * SQRT3
-
-            if obj != self.template:
-                self.template = obj
-                self.branch_type = BranchType.Line
-
-        elif type(obj) is SequenceLineType:
-
-            Vn = self.bus_to.Vnom
-            Zbase = (Vn * Vn) / Sbase
-            Ybase = 1 / Zbase
-
-            self.R = np.round(obj.R * self.length / Zbase, 6)
-            self.X = np.round(obj.X * self.length / Zbase, 6)
-            self.G = np.round(obj.G * self.length / Ybase, 6)
-            self.B = np.round(obj.B * self.length / Ybase, 6)
-
-            # get the rating in MVA = kA * kV
-            self.rate = obj.rating * Vn * SQRT3
-
-            if obj != self.template:
-                self.template = obj
-                self.branch_type = BranchType.Line
-        elif type(obj) is BranchTemplate:
-            # this is the default template that does nothing
-            pass
-        else:
-            logger.append(self.name + ' the object type template was not recognised')
-
-    def get_save_data(self):
-        """
-        Return the data that matches the edit_headers
-        :return:
-        """
-        conv = BranchTypeConverter(None)
-
-        data = list()
-        for name, properties in self.editable_headers.items():
-            obj = getattr(self, name)
-
-            if properties.tpe == BranchType:
-                obj = conv.inv_conv[self.branch_type]
-            elif properties.tpe == BranchTemplate:
-                if obj is None:
-                    obj = ''
-                else:
-                    obj = str(obj)
-            elif properties.tpe not in [str, float, int, bool]:
-                obj = str(obj)
-            data.append(obj)
-        return data
 
     def get_json_dict(self, id, bus_dict):
         """
@@ -517,7 +308,7 @@ class Branch(EditableDevice):
         :return:
         """
         return {'id': id,
-                'type': 'branch',
+                'type': 'dc_branch',
                 'phases': 'ps',
                 'name': self.name,
                 'from': bus_dict[self.bus_from],
@@ -525,17 +316,11 @@ class Branch(EditableDevice):
                 'active': self.active,
                 'rate': self.rate,
                 'r': self.R,
-                'x': self.X,
-                'g': self.G,
-                'b': self.B,
                 'length': self.length,
-                'tap_module': self.tap_module,
-                'bus_to_regulated': self.bus_to_regulated,
                 'vset': self.vset,
                 'temp_base': self.temp_base,
                 'temp_oper': self.temp_oper,
                 'alpha': self.alpha,
-                'tap_angle': self.angle,
                 'branch_type': self.branch_type}
 
     def plot_profiles(self, time_series=None, my_index=0, show_fig=True):
