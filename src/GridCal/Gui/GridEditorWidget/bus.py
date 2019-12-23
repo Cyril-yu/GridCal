@@ -760,6 +760,7 @@ class AcDcBusGraphicItem(QGraphicsRectItem):
         """
         self.tile.setBrush(brush)
         self.terminal.setBrush(brush)
+        self.dc_line.setPen(QPen(brush, 5, Qt.DashLine))
 
     def merge(self, other_bus_graphic):
 
@@ -830,29 +831,6 @@ class AcDcBusGraphicItem(QGraphicsRectItem):
         # Arrange line positions
         self.terminal.process_callbacks(self.pos() + self.terminal.pos())
 
-    def create_children_icons(self):
-        """
-        Create the icons of the elements that are attached to the API bus object
-        Returns:
-            Nothing
-        """
-        for elm in self.api_object.loads:
-            self.add_load(elm)
-
-        for elm in self.api_object.static_generators:
-            self.add_static_generator(elm)
-
-        for elm in self.api_object.controlled_generators:
-            self.add_generator(elm)
-
-        for elm in self.api_object.shunts:
-            self.add_shunt(elm)
-
-        for elm in self.api_object.batteries:
-            self.add_battery(elm)
-
-        self.arrange_children()
-
     def contextMenuEvent(self, event):
         """
         Display context menu
@@ -879,31 +857,6 @@ class AcDcBusGraphicItem(QGraphicsRectItem):
         re.triggered.connect(self.reduce)
 
         menu.addSeparator()
-
-        # al = menu.addAction('Add load')
-        # al.triggered.connect(self.add_load)
-        #
-        # ash = menu.addAction('Add shunt')
-        # ash.triggered.connect(self.add_shunt)
-        #
-        # acg = menu.addAction('Add generator')
-        # acg.triggered.connect(self.add_generator)
-        #
-        # asg = menu.addAction('Add static generator')
-        # asg.triggered.connect(self.add_static_generator)
-        #
-        # ab = menu.addAction('Add battery')
-        # ab.triggered.connect(self.add_battery)
-        #
-        # menu.addSeparator()
-        #
-        # arr = menu.addAction('Arrange')
-        # arr.triggered.connect(self.arrange_children)
-
-        # menu.addSeparator()
-        #
-        # sc = menu.addAction('Enable/Disable \nShort circuit')
-        # sc.triggered.connect(self.enable_disable_sc)
 
         menu.exec_(event.screenPos())
 
@@ -1018,70 +971,4 @@ class AcDcBusGraphicItem(QGraphicsRectItem):
         self.change_size(w=w, h=h)
         self.sizer.setPos(w, self.h)
 
-    def add_load(self, api_obj=None):
-        """
-        Add load object to bus
-        """
-        if api_obj is None or type(api_obj) is bool:
-            api_obj = self.diagramScene.circuit.add_load(self.api_object)
 
-        _grph = LoadGraphicItem(self, api_obj, self.diagramScene)
-        api_obj.graphic_obj = _grph
-        self.shunt_children.append(_grph)
-        self.arrange_children()
-
-    def add_shunt(self, api_obj=None):
-        """
-
-        Returns:
-
-        """
-        if api_obj is None or type(api_obj) is bool:
-            api_obj = self.diagramScene.circuit.add_shunt(self.api_object)
-
-        _grph = ShuntGraphicItem(self, api_obj, self.diagramScene)
-        api_obj.graphic_obj = _grph
-        self.shunt_children.append(_grph)
-        self.arrange_children()
-
-    def add_generator(self, api_obj=None):
-        """
-
-        Returns:
-
-        """
-        if api_obj is None or type(api_obj) is bool:
-            api_obj = self.diagramScene.circuit.add_generator(self.api_object)
-
-        _grph = GeneratorGraphicItem(self, api_obj, self.diagramScene)
-        api_obj.graphic_obj = _grph
-        self.shunt_children.append(_grph)
-        self.arrange_children()
-
-    def add_static_generator(self, api_obj=None):
-        """
-
-        Returns:
-
-        """
-        if api_obj is None or type(api_obj) is bool:
-            api_obj = self.diagramScene.circuit.add_static_generator(self.api_object)
-
-        _grph = StaticGeneratorGraphicItem(self, api_obj, self.diagramScene)
-        api_obj.graphic_obj = _grph
-        self.shunt_children.append(_grph)
-        self.arrange_children()
-
-    def add_battery(self, api_obj=None):
-        """
-
-        Returns:
-
-        """
-        if api_obj is None or type(api_obj) is bool:
-            api_obj = self.diagramScene.circuit.add_battery(self.api_object)
-
-        _grph = BatteryGraphicItem(self, api_obj, self.diagramScene)
-        api_obj.graphic_obj = _grph
-        self.shunt_children.append(_grph)
-        self.arrange_children()

@@ -69,7 +69,9 @@ class TimeFrame(Enum):
 
 class DeviceType(Enum):
     BusDevice = 'Bus'
+    AcDcBusDevice = 'AcDcBus'
     BranchDevice = 'Branch'
+    DcBranchDevice = 'DcBranch'
     BatteryDevice = 'Battery'
     LoadDevice = 'Load'
     GeneratorDevice = 'Generator'

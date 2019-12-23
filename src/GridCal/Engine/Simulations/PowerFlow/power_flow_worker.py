@@ -1172,18 +1172,14 @@ def multi_island_pf(multi_circuit: MultiCircuit, options: PowerFlowOptions, opf_
     :param logger: list of events to add to
     :return: PowerFlowResults instance
     """
-    # print('PowerFlowDriver at ', self.grid.name)
-    n = len(multi_circuit.buses)
-    m = len(multi_circuit.branches)
-    results = PowerFlowResults()
-    results.initialize(n, m)
 
     numerical_circuit = multi_circuit.compile(opf_results=opf_results)
 
     calculation_inputs = numerical_circuit.compute(apply_temperature=options.apply_temperature_correction,
                                                    branch_tolerance_mode=options.branch_impedance_tolerance_mode,
                                                    ignore_single_node_islands=options.ignore_single_node_islands)
-
+    results = PowerFlowResults()
+    results.initialize(numerical_circuit.nbus, numerical_circuit.nbr)
     results.bus_types = numerical_circuit.bus_types
 
     if len(calculation_inputs) > 1:

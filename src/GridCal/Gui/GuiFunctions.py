@@ -1109,7 +1109,7 @@ class ProfilesModel(QtCore.QAbstractTableModel):
     def restore(self, data: dict):
         """
         Set profiles data from undo history
-        :param data: dictionary comming from the history
+        :param data: dictionary coming from the history
         :return:
         """
         for col, array in data.items():

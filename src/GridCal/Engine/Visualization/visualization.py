@@ -68,9 +68,9 @@ def colour_the_schematic(circuit: MultiCircuit, s_bus, s_branch, voltages, loadi
     NONE = 4,
     STO_DISPATCH = 5
     '''
-    bus_types = ['', 'PQ', 'PV', 'Slack', 'None', 'Storage']
+    bus_types = ['', 'PQ', 'PV', 'Slack', 'None', 'Storage', 'AC/DC']
 
-    for i, bus in enumerate(circuit.buses):
+    for i, bus in enumerate(circuit.buses + circuit.acdc_buses):
         if bus.active:
             r, g, b, a = voltage_cmap(vnorm[i])
             bus.graphic_obj.set_tile_color(QtGui.QColor(r * 255, g * 255, b * 255, a * 255))

@@ -172,6 +172,18 @@ class EditorGraphicsView(QGraphicsView):
         self.scene_.addItem(elm)
         return elm
 
+    def add_acdc_bus(self, bus: AcDcBus, explode_factor=1.0):
+        """
+        Add bus
+        Args:
+            bus: GridCal Bus object
+            explode_factor: factor to position the node
+        """
+        elm = AcDcBusGraphicItem(diagramScene=self.scene(), name=bus.name, editor=self.editor, bus=bus)
+        elm.setPos(self.mapToScene(QPoint(bus.x * explode_factor, bus.y * explode_factor)))
+        self.scene_.addItem(elm)
+        return elm
+
 
 class LibraryModel(QStandardItemModel):
     """
@@ -406,6 +418,8 @@ class GridEditor(QSplitter):
                         if isinstance(self.started_branch.bus_from, AcDcBusGraphicItem) and \
                                 isinstance(self.started_branch.bus_to, AcDcBusGraphicItem):
 
+                            # if connected between an ACDC and an ACDC, then it is a DC line
+
                             obj = DcBranch(bus_from=self.started_branch.bus_from.api_object,
                                            bus_to=self.started_branch.bus_to.api_object,
                                            name='Dc Line ' + str(self.branch_editor_count),
@@ -414,7 +428,7 @@ class GridEditor(QSplitter):
                             obj.graphic_obj = self.started_branch
 
                             self.started_branch.api_object = obj
-                            self.circuit.add_branch(obj)
+                            self.circuit.add_dc_branch(obj)
 
                             item.process_callbacks(item.parent.pos() + item.pos())
 
@@ -589,7 +603,7 @@ class GridEditor(QSplitter):
                                              weight='weight', scale=20.0, center=None)
 
         # assign the positions to the graphical objects of the nodes
-        for i, bus in enumerate(self.circuit.buses):
+        for i, bus in enumerate(self.circuit.buses + self.circuit.acdc_buses):
             try:
                 x, y = pos[i] * 500
                 bus.graphic_obj.setPos(QPoint(x, y))
@@ -634,7 +648,7 @@ class GridEditor(QSplitter):
         else:
             pass
 
-    def add_branch(self, branch):
+    def add_branch_graphic(self, branch):
         """
         Add branch to the schematic
         :param branch: Branch object
@@ -668,11 +682,27 @@ class GridEditor(QSplitter):
 
         return graphic_obj
 
+    def add_api_acdc_bus(self, bus: AcDcBus, explode_factor=1.0):
+        """
+        Add API bus to the diagram
+        :param bus: AcDcBus instance
+        :param explode_factor: explode factor
+        """
+        # add the graphic object to the diagram view
+        graphic_obj = self.diagramView.add_acdc_bus(bus=bus, explode_factor=explode_factor)
+
+        # add circuit pointer to the bus graphic element
+        graphic_obj.diagramScene.circuit = self.circuit  # add pointer to the circuit
+
+        graphic_obj.update()
+
+        return graphic_obj
+
     def add_api_branch(self, branch: Branch):
         """
-
-        :param branch:
-        :return:
+        Add AC branch to the schematic
+        :param branch: Branch instance
+        :return: Nothing
         """
         terminal_from = branch.bus_from.graphic_obj.terminal
         terminal_to = branch.bus_to.graphic_obj.terminal
@@ -690,22 +720,25 @@ class GridEditor(QSplitter):
 
     def add_circuit_to_schematic(self, circuit: "MultiCircuit", explode_factor=1.0):
         """
-
-        :param circuit:
-        :param explode_factor:
-        :return:
+        Add a complete circuit to the schematic
+        :param circuit: MultiCircuit instance
+        :param explode_factor: separation factor
+        :return: Nothing
         """
         # first create the buses
         for bus in circuit.buses:
             bus.graphic_obj = self.add_api_bus(bus, explode_factor)
 
-        for branch in circuit.branches:
+        for bus in circuit.acdc_buses:
+            bus.graphic_obj = self.add_api_acdc_bus(bus, explode_factor)
+
+        for branch in circuit.branches + circuit.dc_branches:
             branch.graphic_obj = self.add_api_branch(branch)
 
     def align_schematic(self):
         """
-
-        :return:
+        Adjust the schematic to its content
+        :return: Nothing
         """
         # figure limits
         min_x = sys.maxsize
@@ -745,6 +778,3 @@ class GridEditor(QSplitter):
         self.add_circuit_to_schematic(self.circuit, explode_factor=explode_factor)
 
         self.align_schematic()
-
-
-

@@ -220,11 +220,12 @@ def calc_islands(circuit: CalculationInputs, bus_active, C_bus_bus, C_branch_bus
 
 class NumericalCircuit:
 
-    def __init__(self, n_bus, n_br, n_ld, n_gen, n_sta_gen, n_batt, n_sh, n_time, Sbase):
+    def __init__(self, n_bus, n_br, n_br_dc, n_ld, n_gen, n_sta_gen, n_batt, n_sh, n_time, Sbase):
         """
         Topology constructor
         :param n_bus: number of nodes
         :param n_br: number of branches
+        :param n_br_dc: Number of DC branches
         :param n_ld: number of loads
         :param n_gen: number of generators
         :param n_sta_gen: number of generators
@@ -240,13 +241,19 @@ class NumericalCircuit:
         # number of branches
         self.nbr = n_br
 
+        # number of dc branches
+        self.n_br_dc = n_br_dc
+
         # number of time steps
         self.ntime = n_time
 
+        # number of batteries
         self.n_batt = n_batt
 
+        # number of controlled generators
         self.n_ctrl_gen = n_gen
 
+        # number of loads
         self.n_ld = n_ld
 
         # base power
@@ -308,6 +315,24 @@ class NumericalCircuit:
         self.C_branch_bus_t = sp.lil_matrix((n_br, n_bus), dtype=int)
 
         self.switch_indices = list()
+
+        # DC Branches
+        self.dc_branch_names = np.empty(n_br_dc, dtype=object)
+
+        self.dc_br_rates = np.zeros(n_br, dtype=float)
+
+        self.dc_branch_active = np.zeros(n_br, dtype=int)
+        self.dc_branch_active_prof = np.zeros((n_time, n_br), dtype=int)
+        self.dc_temp_oper_prof = np.zeros((n_time, n_br), dtype=float)
+        self.dc_br_rate_profile = np.zeros((n_time, n_br), dtype=float)
+
+        self.C_dc_branch_bus_f = sp.lil_matrix((n_br_dc, n_bus), dtype=int)
+        self.C_dc_branch_bus_t = sp.lil_matrix((n_br_dc, n_bus), dtype=int)
+
+        self.dc_branch_power = np.zeros(n_br_dc, dtype=float)
+        self.dc_branch_losses = np.zeros(n_br_dc, dtype=float)
+
+        self.dc_branch_power_prof = np.zeros((n_time, n_br_dc), dtype=float)
 
         # load
         self.load_names = np.empty(n_ld, dtype=object)
@@ -573,6 +598,11 @@ class NumericalCircuit:
         circuit.bus_names = self.bus_names
         circuit.branch_names = self.branch_names
 
+        # DC branches
+        circuit.dc_branch_rates = self.dc_br_rates
+        circuit.dc_branch_rates_prof = self.dc_br_rate_profile
+        circuit.dc_branch_names = self.dc_branch_names
+
         # connectivity matrices
         circuit.C_bus_load = self.C_bus_load
         circuit.C_bus_batt = self.C_bus_batt
@@ -630,6 +660,9 @@ class NumericalCircuit:
             Q = pf_sign * self.generator_power * np.sqrt((1.0 - pf2) / (pf2 + 1e-20))
             gen_S = self.generator_power + 1j * Q
             S += self.C_bus_gen * (gen_S / self.Sbase * self.generator_active)
+
+        # add the DC part
+        S += (-self.C_dc_branch_bus_f.T * self.dc_branch_power + self.C_dc_branch_bus_t.T * self.dc_branch_power) / self.Sbase
 
         installed_generation_per_bus = self.C_bus_gen * (self.generator_nominal_power * self.generator_active)
 

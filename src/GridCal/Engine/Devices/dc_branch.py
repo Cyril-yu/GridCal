@@ -140,33 +140,34 @@ class DcBranch(EditableDevice):
     def __init__(self, bus_from: Bus = None, bus_to: Bus = None, name='DC Line', r=1e-20,
                  rate=1.0, active=True, tolerance=0, cost=0.0,
                  mttf=0, mttr=0, r_fault=0.0, fault_pos=0.5,
-                 branch_type: BranchType = BranchType.DCLine, length=1, vset=1.0,
+                 branch_type: BranchType = BranchType.DCLine, length=1, scheduled=0, loss=0,
                  temp_base=20, temp_oper=20, alpha=0.00330):
 
         EditableDevice.__init__(self,
                                 name=name,
                                 active=active,
-                                device_type=DeviceType.BranchDevice,
+                                device_type=DeviceType.DcBranchDevice,
                                 editable_headers={'name': GCProp('', str, 'Name of the branch.'),
                                                   'bus_from': GCProp('', DeviceType.BusDevice,
                                                                      'Name of the bus at the "from" side of the branch.'),
                                                   'bus_to': GCProp('', DeviceType.BusDevice,
                                                                    'Name of the bus at the "to" side of the branch.'),
                                                   'active': GCProp('', bool, 'Is the branch active?'),
-                                                  'rate': GCProp('MVA', float, 'Thermal rating power of the branch.'),
+                                                  'rate': GCProp('MW', float, 'Thermal rating power of the branch.'),
                                                   'mttf': GCProp('h', float, 'Mean time to failure, '
                                                                  'used in reliability studies.'),
                                                   'mttr': GCProp('h', float, 'Mean time to recovery, '
                                                                  'used in reliability studies.'),
                                                   'R': GCProp('p.u.', float, 'Total resistance.'),
+                                                  'Psch': GCProp('MW', float, 'Scheduled power\n'
+                                                                              '(the sign denotes the direction)'),
+                                                  'loss': GCProp('p.u.', float, 'Per unit losses'),
                                                   'tolerance': GCProp('%', float,
                                                                       'Tolerance expected for the impedance values\n'
                                                                       '7% is expected for transformers\n'
                                                                       '0% for lines.'),
                                                   'length': GCProp('km', float, 'Length of the branch '
                                                                    '(not used for calculation)'),
-                                                  'vset': GCProp('p.u.', float, 'Objective voltage at the "to" side of '
-                                                                 'the bus when regulating the tap.'),
                                                   'temp_base': GCProp('ºC', float, 'Base temperature at which R was '
                                                                       'measured.'),
                                                   'temp_oper': GCProp('ºC', float, 'Operation temperature to modify R.'),
@@ -180,11 +181,11 @@ class DcBranch(EditableDevice):
                                                                   'Aluminum @ 20ºC: 0.004308,\n'
                                                                   'Aluminum @ 75ºC: 0.00330'),
                                                   'Cost': GCProp('e/MWh', float,
-                                                                 'Cost of overloads. Used in OPF.'),
-                                                  'branch_type': GCProp('', BranchType, '')},
+                                                                 'Cost of overloads. Used in OPF.')},
                                 non_editable_attributes=['bus_from', 'bus_to', 'template'],
                                 properties_with_profile={'active': 'active_prof',
                                                          'rate': 'rate_prof',
+                                                         'Psch': 'Psch_prof',
                                                          'temp_oper': 'temp_oper_prof',
                                                          'Cost': 'Cost_prof'})
 
@@ -197,6 +198,12 @@ class DcBranch(EditableDevice):
 
         # line length in km
         self.length = length
+
+        self.Psch = scheduled
+
+
+
+        self.loss = loss
 
         # branch impedance tolerance
         self.tolerance = tolerance
@@ -218,6 +225,8 @@ class DcBranch(EditableDevice):
 
         self.active_prof = None
 
+        self.Psch_prof = None
+
         # Conductor base and operating temperatures in ºC
         self.temp_base = temp_base
         self.temp_oper = temp_oper
@@ -234,18 +243,6 @@ class DcBranch(EditableDevice):
 
         # branch type: Line, Transformer, etc...
         self.branch_type = branch_type
-
-        # type template
-        self.vset = vset
-
-        # converter for enumerations
-        self.conv = {'branch': BranchType.Branch,
-                     'line': BranchType.Line,
-                     'transformer': BranchType.Transformer,
-                     'switch': BranchType.Switch,
-                     'reactance': BranchType.Reactance}
-
-        self.inv_conv = {val: key for key, val in self.conv.items()}
 
     @property
     def R_corrected(self):

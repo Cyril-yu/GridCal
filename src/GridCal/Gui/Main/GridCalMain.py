@@ -1675,7 +1675,7 @@ class MainGUI(QMainWindow):
             reply = QMessageBox.question(self, 'Message', quit_msg, QMessageBox.Yes, QMessageBox.No)
 
             if reply == QMessageBox.Yes:
-                for bus in self.circuit.buses:
+                for bus in self.circuit.all_elements():
                     bus.delete_profiles()
                 self.circuit.time_profile = None
                 self.circuit.has_time_series = False
@@ -1701,8 +1701,8 @@ class MainGUI(QMainWindow):
                 reply = QMessageBox.question(self, 'Message', quit_msg, QMessageBox.Yes, QMessageBox.No)
 
                 if reply == QMessageBox.Yes:
-                    for bus in self.circuit.buses:
-                        bus.set_profile_values(t)
+                    for elm in self.circuit.all_elements():
+                        elm.set_profile_values(t)
                 else:
                     pass
             else:
@@ -1882,7 +1882,7 @@ class MainGUI(QMainWindow):
         idx_to = self.ui.device_type_magnitude_comboBox_2.currentIndex()
         magnitude_to = magnitudes[idx_to]
 
-        if len(self.circuit.buses) > 0 and magnitude_from != magnitude_to:
+        if self.circuit.bus_number() > 0 and magnitude_from != magnitude_to:
 
             msg = "Are you sure that you want to overwrite the values " + magnitude_to + \
                   " with the values of " + magnitude_from + "?"

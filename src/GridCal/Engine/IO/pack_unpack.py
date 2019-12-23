@@ -27,6 +27,8 @@ def get_objects_dictionary():
     """
     object_types = {'bus': Bus(),
 
+                    'acdc_bus': AcDcBus(),
+
                     'load': Load(),
 
                     'static_generator': StaticGenerator(),
@@ -48,6 +50,8 @@ def get_objects_dictionary():
                     'transformer_types': TransformerType(),
 
                     'branch': Branch(),
+
+                    'dc_branch': DcBranch(),
                     }
 
     return object_types
@@ -207,7 +211,7 @@ def data_frames_to_circuit(data: Dict):
     # for each element type...
     for key, template_elm in object_types.items():
 
-        if key in data.keys():
+        if key in data.keys():  # check if the key is in the passed data
 
             # get the DataFrame
             df = data[key]
@@ -259,6 +263,14 @@ def data_frames_to_circuit(data: Dict):
                                     if template_elm.device_type != DeviceType.BranchDevice:
                                         parent_bus.add_device(devices[i])
 
+                                # check if the bus is in the AC/DC dictionary...
+                                elif DeviceType.AcDcBusDevice in elements_dict.keys():
+
+                                    if df[prop].values[i] in elements_dict[DeviceType.AcDcBusDevice].keys():
+
+                                        parent_bus = elements_dict[DeviceType.AcDcBusDevice][df[prop].values[i]]
+                                        setattr(devices[i], prop, parent_bus)
+
                                 else:
                                     circuit.logger.append('Bus not found: ' + str(df[prop].values[i]))
 
@@ -304,8 +316,14 @@ def data_frames_to_circuit(data: Dict):
             if template_elm.device_type == DeviceType.BusDevice:
                 circuit.buses = devices
 
+            elif template_elm.device_type == DeviceType.AcDcBusDevice:
+                circuit.acdc_buses = devices
+
             elif template_elm.device_type == DeviceType.BranchDevice:
                 circuit.branches = devices
+
+            elif template_elm.device_type == DeviceType.DcBranchDevice:
+                circuit.dc_branches = devices
 
             elif template_elm.device_type == DeviceType.TowerDevice:
                 circuit.overhead_line_types = devices

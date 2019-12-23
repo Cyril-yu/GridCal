@@ -28,7 +28,7 @@ def compile_types(Sbus, types, logger=Logger()):
     """
 
     pq = np.where(types == BusMode.PQ.value)[0]
-    pv = np.where(types == BusMode.PV.value)[0]
+    pv = np.where((types == BusMode.PV.value) | (types == BusMode.ACDC.value))[0]
     ref = np.where(types == BusMode.REF.value)[0]
 
     if len(ref) == 0:  # there is no slack!
@@ -39,7 +39,7 @@ def compile_types(Sbus, types, logger=Logger()):
 
         else:  # select the first PV generator as the slack
 
-            mx = max(Sbus[pv])
+            mx = np.max(Sbus[pv])
             if mx > 0:
                 # find the generator that is injecting the most
                 i = np.where(Sbus == mx)[0][0]

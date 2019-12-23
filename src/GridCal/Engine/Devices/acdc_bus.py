@@ -86,7 +86,7 @@ class AcDcBus(EditableDevice):
         EditableDevice.__init__(self,
                                 name=name,
                                 active=active,
-                                device_type=DeviceType.BusDevice,
+                                device_type=DeviceType.AcDcBusDevice,
                                 editable_headers={'name': GCProp('', str, 'Name of the bus'),
                                                   'active': GCProp('', bool,
                                                                    'Is the bus active? used to disable the bus.'),
