@@ -319,15 +319,15 @@ class NumericalCircuit:
         # DC Branches
         self.dc_branch_names = np.empty(n_br_dc, dtype=object)
 
-        self.dc_br_rates = np.zeros(n_br, dtype=float)
+        self.dc_br_rates = np.zeros(n_br_dc, dtype=float)
 
-        self.dc_branch_active = np.zeros(n_br, dtype=int)
-        self.dc_branch_active_prof = np.zeros((n_time, n_br), dtype=int)
-        self.dc_temp_oper_prof = np.zeros((n_time, n_br), dtype=float)
-        self.dc_br_rate_profile = np.zeros((n_time, n_br), dtype=float)
+        self.dc_branch_active = np.zeros(n_br_dc, dtype=int)
+        self.dc_branch_active_prof = np.zeros((n_time, n_br_dc), dtype=int)
+        self.dc_temp_oper_prof = np.zeros((n_time, n_br_dc), dtype=float)
+        self.dc_br_rate_profile = np.zeros((n_time, n_br_dc), dtype=float)
 
-        self.C_dc_branch_bus_f = sp.lil_matrix((n_br_dc, n_bus), dtype=int)
-        self.C_dc_branch_bus_t = sp.lil_matrix((n_br_dc, n_bus), dtype=int)
+        self.C_dc_bus_branch_f = sp.lil_matrix((n_bus, n_br_dc), dtype=int)
+        self.C_dc_bus_branch_t = sp.lil_matrix((n_bus, n_br_dc), dtype=int)
 
         self.dc_branch_power = np.zeros(n_br_dc, dtype=float)
         self.dc_branch_losses = np.zeros(n_br_dc, dtype=float)
@@ -661,8 +661,9 @@ class NumericalCircuit:
             gen_S = self.generator_power + 1j * Q
             S += self.C_bus_gen * (gen_S / self.Sbase * self.generator_active)
 
-        # add the DC part
-        S += (-self.C_dc_branch_bus_f.T * self.dc_branch_power + self.C_dc_branch_bus_t.T * self.dc_branch_power) / self.Sbase
+        # add the DC lines part
+        S -= self.C_dc_bus_branch_f * (self.dc_branch_power * self.dc_branch_active / self.Sbase)
+        S += self.C_dc_bus_branch_t * (self.dc_branch_power * self.dc_branch_active * (1 - self.dc_branch_losses) / self.Sbase)
 
         installed_generation_per_bus = self.C_bus_gen * (self.generator_nominal_power * self.generator_active)
 
@@ -718,6 +719,10 @@ class NumericalCircuit:
             # batteries
             if add_storage:
                 Sbus_prof += self.C_bus_batt * (self.battery_power_profile / self.Sbase * self.battery_active).T
+
+            # add the DC line influence
+            Sbus_prof -= self.C_dc_bus_branch_f * (self.dc_branch_power_prof * self.dc_branch_active_prof / self.Sbase).T
+            Sbus_prof += self.C_dc_bus_branch_t * (self.dc_branch_power_prof * self.dc_branch_active_prof * (1.0 - self.dc_branch_losses) / self.Sbase).T
 
             circuit.Ysh_prof = Ysh_prof
             circuit.Sbus_prof = Sbus_prof

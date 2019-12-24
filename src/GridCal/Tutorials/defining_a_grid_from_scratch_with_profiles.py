@@ -8,7 +8,7 @@ Author: Santiago Peñate Vera (September 2018)
 """
 import numpy as np
 import pandas as pd
-from tabulate import tabulate
+
 from GridCal.Engine.Devices.branch import Branch, BranchTemplate
 from GridCal.Engine.Devices.bus import Bus
 from GridCal.Engine.Devices.generator import Generator
@@ -196,9 +196,9 @@ def main():
     print('\nError:', pf.results.error)
     print('Elapsed time (s):', pf.results.elapsed, '\n')
 
-    print(tabulate(v_df, tablefmt="pipe", headers=v_df.columns.values))
+    print(v_df)
     print()
-    print(tabulate(br_df, tablefmt="pipe", headers=br_df.columns.values))
+    print(br_df)
 
     ####################################################################################################################
     # Run a time series power flow simulation

@@ -932,7 +932,7 @@ class AcDcBusGraphicItem(QGraphicsRectItem):
         ts = self.diagramScene.parent().parent().parent().parent().parent().parent().parent().parent().parent().parent().parent().parent().time_series
 
         # get the index of this object
-        i = self.diagramScene.circuit.buses.index(self.api_object)
+        i = self.diagramScene.circuit.all_buses().index(self.api_object)
 
         # get the time
         t = self.diagramScene.circuit.time_profile

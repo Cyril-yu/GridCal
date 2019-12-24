@@ -428,16 +428,16 @@ class TimeSeries(QThread):
         :return: TimeSeriesResults instance
         """
 
+        # compile the multi-circuit
+        numerical_circuit = self.grid.compile(opf_time_series_results=self.opf_time_series_results)
+
         # initialize the grid time series results we will append the island results with another function
-        n = len(self.grid.buses)
-        m = len(self.grid.branches)
-        nt = len(self.grid.time_profile)
+        n = numerical_circuit.nbus
+        m = numerical_circuit.nbr
+        nt = numerical_circuit.ntime
         time_series_results = TimeSeriesResults(n, m, nt, self.start_, self.end_, time_array=self.grid.time_profile)
         if self.end_ is None:
             self.end_ = nt
-
-        # compile the multi-circuit
-        numerical_circuit = self.grid.compile(opf_time_series_results=self.opf_time_series_results)
 
         # do the topological computation
         calc_inputs_dict = numerical_circuit.compute_ts(branch_tolerance_mode=self.options.branch_impedance_tolerance_mode,

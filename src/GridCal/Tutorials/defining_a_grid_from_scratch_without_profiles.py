@@ -163,7 +163,6 @@ def main():
     v_df = pd.DataFrame(data=data, columns=headers, index=grid.bus_names)
     print('\n', v_df)
 
-
     # Let's do the same for the branch results
     headers = ['Loading (%)', 'Current(p.u.)', 'Power (MVA)']
     loading = np.abs(pf.results.loading) * 100
@@ -177,12 +176,9 @@ def main():
     print('\nError:', pf.results.error)
     print('Elapsed time (s):', pf.results.elapsed, '\n')
 
-
-    from tabulate import tabulate
-
-    print(tabulate(v_df, tablefmt="pipe", headers=v_df.columns.values))
+    print(v_df)
     print()
-    print(tabulate(br_df, tablefmt="pipe", headers=br_df.columns.values))
+    print(br_df)
 
 
 if __name__ == '__main__':

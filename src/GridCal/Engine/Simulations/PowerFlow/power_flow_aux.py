@@ -28,8 +28,9 @@ def compile_types(Sbus, types, logger=Logger()):
     """
 
     pq = np.where(types == BusMode.PQ.value)[0]
-    pv = np.where((types == BusMode.PV.value) | (types == BusMode.ACDC.value))[0]
+    pv = np.where(types == BusMode.PV.value)[0]
     ref = np.where(types == BusMode.REF.value)[0]
+    dc = np.where(types == BusMode.ACDC.value)[0]
 
     if len(ref) == 0:  # there is no slack!
 
@@ -57,6 +58,10 @@ def compile_types(Sbus, types, logger=Logger()):
         types[ref] = BusMode.REF.value
     else:
         pass  # no problem :)
+
+    # add the dc to pv, this is added here to avoid ACDC buses become the slack
+    pv = np.r_[pv, dc]
+    pv.sort()
 
     pqpv = np.r_[pq, pv]
     pqpv.sort()

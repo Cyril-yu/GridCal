@@ -277,3 +277,47 @@ class AcDcBus(EditableDevice):
         Get tuple of the bus coordinates (latitude, longitude)
         """
         return self.latitude, self.longitude
+
+    def plot_profiles(self, time_profile, ax_load=None, ax_voltage=None, time_series_driver=None, my_index=0):
+        """
+        plot the profiles of this bus
+        :param time_profile: Master profile of time steps (stored in the MultiCircuit)
+        :param time_series_driver: time series driver
+        :param ax_load: Load axis, if not provided one will be created
+        :param ax_voltage: Voltage axis, if not provided one will be created
+        :param my_index: index of this object in the time series results
+        """
+
+        if ax_load is None:
+            fig = plt.figure(figsize=(12, 8))
+            fig.suptitle(self.name, fontsize=20)
+            if time_series_driver is not None:
+                # 2 plots: load + voltage
+                ax_load = fig.add_subplot(211)
+                ax_voltage = fig.add_subplot(212)
+            else:
+                # only 1 plot: load
+                ax_load = fig.add_subplot(111)
+                ax_voltage = None
+            show_fig = True
+        else:
+            show_fig = False
+
+        if time_series_driver is not None:
+            v = np.abs(time_series_driver.results.voltage[:, my_index])
+            p = np.abs(time_series_driver.results.S[:, my_index])
+            t = time_series_driver.results.time
+            pd.DataFrame(data=v, index=t, columns=['Voltage (p.u.)']).plot(ax=ax_voltage)
+            pd.DataFrame(data=p, index=t, columns=['Computed power (p.u.)']).plot(ax=ax_load)
+
+            ax_load.set_ylabel('Power [MW]', fontsize=11)
+            ax_load.legend()
+        else:
+            pass
+
+        if ax_voltage is not None:
+            ax_voltage.set_ylabel('Voltage module [p.u.]', fontsize=11)
+            ax_voltage.legend()
+
+        if show_fig:
+            plt.show()

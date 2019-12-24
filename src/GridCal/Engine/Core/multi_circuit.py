@@ -923,18 +923,18 @@ class MultiCircuit:
             t = self.bus_dictionary[branch.bus_to]
 
             # connectivity
-            circuit.C_dc_branch_bus_f[i, f] = 1
-            circuit.C_dc_branch_bus_t[i, t] = 1
+            circuit.C_dc_bus_branch_f[f, i] = 1
+            circuit.C_dc_bus_branch_t[t, i] = 1
 
             # name and state
             circuit.dc_branch_names[i] = branch.name
-
+            circuit.dc_branch_active[i] = branch.active
             circuit.dc_branch_power[i] = branch.Psch
             circuit.dc_branch_losses[i] = branch.loss
 
             if n_time > 0:
                 circuit.branch_active_prof[:, i] = branch.active_prof
-                circuit.dc_branch_power_prof[i] = branch.Psch_prof
+                circuit.dc_branch_power_prof[:, i] = branch.Psch_prof
 
         # Assign and return
         self.numerical_circuit = circuit
