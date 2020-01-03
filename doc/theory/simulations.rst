@@ -19,6 +19,7 @@ The following subsections include theory about the power flow algorithms support
     power_flow/post_power_flow
     power_flow/continuation_power_flow
     power_flow/distributed_slack
+    power_flow/hvdc
 
 
 Optimal power flow

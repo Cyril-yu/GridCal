@@ -201,8 +201,6 @@ class DcBranch(EditableDevice):
 
         self.Psch = scheduled
 
-
-
         self.loss = loss
 
         # branch impedance tolerance
